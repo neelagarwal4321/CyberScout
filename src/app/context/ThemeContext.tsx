@@ -23,10 +23,10 @@ const FONT_SIZE_MAP: Record<FontSize, string> = {
 
 // Darker accent variants for light mode (better contrast on bright backgrounds)
 const LIGHT_ACCENT_MAP: Record<string, string> = {
-  "#00E5FF": "#0088BB",
-  "#39FF14": "#00921E",
   "#A855F7": "#7B2FBE",
-  "#FF9F1C": "#C86400",
+  "#E8A838": "#C48E2F",
+  "#4ADE80": "#15803D",
+  "#F87171": "#DC2626",
 };
 
 function applyAccentVars(root: HTMLElement, color: string) {
@@ -55,7 +55,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return (localStorage.getItem("fontSize") as FontSize) ?? "medium";
   });
   const [accentColor, setAccentColorState] = useState<string>(() => {
-    return localStorage.getItem("accentColor") ?? "#00E5FF";
+    return localStorage.getItem("accentColor") ?? "#A855F7";
   });
 
   // Theme class + accent color (accent visuals differ per theme)

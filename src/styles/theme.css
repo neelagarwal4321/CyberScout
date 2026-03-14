@@ -2,67 +2,81 @@
 
 :root {
   --font-size: 16px;
-  
-  /* CyberScout Dark Theme Colors */
-  --background-primary: #0A0E1A;
-  --background-secondary: #111629;
-  --background-tertiary: #1A2038;
-  --surface: #1E2545;
-  --surface-hover: #252D55;
-  --border-default: #2A3362;
-  --border-light: #353F72;
-  
-  --text-primary: #EAEEFF;
-  --text-secondary: #8B95C9;
-  --text-muted: #5A6599;
-  
-  --accent-cyan: #00E5FF;
-  --accent-green: #39FF14;
-  --accent-red: #FF3B5C;
-  --accent-orange: #FF9F1C;
-  --accent-purple: #A855F7;
-  --accent-gold: #FFD700;
-  
-  --overlay: rgba(10, 14, 26, 0.85);
-  
+
+  /* CyberScout Dark Theme Colors — Purple Glass-Morphism */
+  --background-primary: #0D0B1A;
+  --background-secondary: #141025;
+  --background-tertiary: #1C1633;
+  --surface: rgba(30, 22, 56, 0.65);
+  --surface-hover: rgba(40, 30, 72, 0.7);
+  --surface-solid: #1E1638;
+  --border-default: rgba(80, 60, 140, 0.3);
+  --border-light: rgba(120, 90, 180, 0.2);
+  --border-glow: rgba(160, 100, 240, 0.15);
+
+  --text-primary: #F0ECF9;
+  --text-secondary: #9B8FBB;
+  --text-muted: #655C80;
+
+  --accent-primary: #A855F7;
+  --accent-primary-dim: #8B3FD9;
+  --accent-primary-glow: rgba(168, 85, 247, 0.2);
+  --accent-primary-surface: rgba(168, 85, 247, 0.12);
+  --accent-gold: #E8A838;
+  --accent-gold-dim: #C48E2F;
+  --accent-gold-glow: rgba(232, 168, 56, 0.15);
+  --accent-green: #4ADE80;
+  --accent-red: #F87171;
+  --accent-warning: #FBBF24;
+  --accent-purple-light: #C084FC;
+  --accent-blue: #60A5FA;
+
+  /* Keep cyan for backward compat in non-replaced places */
+  --accent-cyan: #A855F7;
+  --accent-orange: #E8A838;
+
+  --overlay: rgba(13, 11, 26, 0.88);
+  --glass-bg: rgba(30, 22, 56, 0.55);
+  --glass-border: rgba(80, 60, 140, 0.25);
+
   /* Legacy variables for compatibility */
-  --background: #0A0E1A;
-  --foreground: #EAEEFF;
-  --card: #1E2545;
-  --card-foreground: #EAEEFF;
-  --popover: #1E2545;
-  --popover-foreground: #EAEEFF;
-  --primary: #00E5FF;
-  --primary-foreground: #0A0E1A;
-  --secondary: #111629;
-  --secondary-foreground: #EAEEFF;
-  --muted: #1A2038;
-  --muted-foreground: #8B95C9;
-  --accent: #00E5FF;
-  --accent-foreground: #0A0E1A;
-  --destructive: #FF3B5C;
-  --destructive-foreground: #EAEEFF;
-  --border: #2A3362;
-  --input: #1E2545;
-  --input-background: #1E2545;
-  --switch-background: #2A3362;
+  --background: #0D0B1A;
+  --foreground: #F0ECF9;
+  --card: rgba(30, 22, 56, 0.65);
+  --card-foreground: #F0ECF9;
+  --popover: #1E1638;
+  --popover-foreground: #F0ECF9;
+  --primary: #A855F7;
+  --primary-foreground: #0D0B1A;
+  --secondary: #141025;
+  --secondary-foreground: #F0ECF9;
+  --muted: #1C1633;
+  --muted-foreground: #9B8FBB;
+  --accent: #A855F7;
+  --accent-foreground: #0D0B1A;
+  --destructive: #F87171;
+  --destructive-foreground: #F0ECF9;
+  --border: rgba(80, 60, 140, 0.3);
+  --input: rgba(30, 22, 56, 0.65);
+  --input-background: rgba(30, 22, 56, 0.65);
+  --switch-background: rgba(80, 60, 140, 0.3);
   --font-weight-medium: 600;
   --font-weight-normal: 400;
-  --ring: #00E5FF;
-  --chart-1: #00E5FF;
-  --chart-2: #39FF14;
-  --chart-3: #FF9F1C;
-  --chart-4: #A855F7;
-  --chart-5: #FF3B5C;
-  --radius: 0.75rem;
-  --sidebar: #111629;
-  --sidebar-foreground: #EAEEFF;
-  --sidebar-primary: #00E5FF;
-  --sidebar-primary-foreground: #0A0E1A;
-  --sidebar-accent: #1E2545;
-  --sidebar-accent-foreground: #EAEEFF;
-  --sidebar-border: #2A3362;
-  --sidebar-ring: #00E5FF;
+  --ring: #A855F7;
+  --chart-1: #A855F7;
+  --chart-2: #4ADE80;
+  --chart-3: #E8A838;
+  --chart-4: #60A5FA;
+  --chart-5: #F87171;
+  --radius: 0.875rem;
+  --sidebar: #141025;
+  --sidebar-foreground: #F0ECF9;
+  --sidebar-primary: #A855F7;
+  --sidebar-primary-foreground: #0D0B1A;
+  --sidebar-accent: rgba(30, 22, 56, 0.65);
+  --sidebar-accent-foreground: #F0ECF9;
+  --sidebar-border: rgba(80, 60, 140, 0.3);
+  --sidebar-ring: #A855F7;
 }
 
 .dark {
@@ -149,13 +163,14 @@
   }
 
   body {
-    @apply bg-[#0A0E1A] text-[#EAEEFF];
+    @apply bg-[#0D0B1A] text-[#F0ECF9];
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
   }
 
   /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * Typography — Premium editorial style.
+  * h1/h2 use serif for luxury/editorial feel.
+  * h3–h4, body, button keep system sans-serif.
   */
 
   html {
@@ -163,22 +178,24 @@
   }
 
   h1 {
-    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 26px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 28px;
     font-weight: 700;
     line-height: 1.3;
+    letter-spacing: -0.3px;
   }
 
   h2 {
-    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 22px;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 24px;
     font-weight: 700;
     line-height: 1.3;
+    letter-spacing: -0.2px;
   }
 
   h3 {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.4;
   }
 
@@ -196,9 +213,9 @@
 
   button {
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 700;
     line-height: 1.5;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
   }
 
   input {
@@ -206,9 +223,9 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
-  
+
   p {
     font-size: 15px;
-    line-height: 22px;
+    line-height: 23px;
   }
 }
