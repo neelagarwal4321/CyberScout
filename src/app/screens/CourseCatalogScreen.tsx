@@ -11,24 +11,24 @@ export function CourseCatalogScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filters = [
-    { id: "all", icon: Grid, label: "All", color: "#00E5FF" },
-    { id: "foundations", icon: Shield, label: "Foundations", color: "#00E5FF" },
-    { id: "blueteam", icon: Eye, label: "Blue Team", color: "#3B82F6" },
-    { id: "redteam", icon: Bug, label: "Red Team", color: "#FF3B5C" },
-    { id: "advancedops", icon: Terminal, label: "Advanced Ops", color: "#A855F7" },
-    { id: "grc", icon: FileText, label: "GRC", color: "#FF9F1C" },
+    { id: "all", icon: Grid, label: "All", color: "#A855F7" },
+    { id: "foundations", icon: Shield, label: "Foundations", color: "#A855F7" },
+    { id: "blueteam", icon: Eye, label: "Blue Team", color: "#60A5FA" },
+    { id: "redteam", icon: Bug, label: "Red Team", color: "#F87171" },
+    { id: "advancedops", icon: Terminal, label: "Advanced Ops", color: "#C084FC" },
+    { id: "grc", icon: FileText, label: "GRC", color: "#FBBF24" },
   ];
 
   const courses = [
     {
       id: "foundations",
       icon: Shield,
-      iconColor: "#00E5FF",
-      bgColor: "rgba(0,229,255,0.06)",
+      iconColor: "#A855F7",
+      bgColor: "rgba(168,85,247,0.06)",
       track: "Foundations",
-      trackColor: "#00E5FF",
+      trackColor: "#A855F7",
       difficulty: "Beginner",
-      difficultyColor: "#39FF14",
+      difficultyColor: "#4ADE80",
       title: "Cybersecurity Foundations",
       description: "Start your cybersecurity journey. Learn networking basics, operating systems, and core security concepts.",
       rating: "4.8",
@@ -41,12 +41,12 @@ export function CourseCatalogScreen() {
     {
       id: "web-security",
       icon: Bug,
-      iconColor: "#FF3B5C",
-      bgColor: "rgba(255,59,92,0.06)",
+      iconColor: "#F87171",
+      bgColor: "rgba(248,113,113,0.06)",
       track: "Red Team",
-      trackColor: "#FF3B5C",
+      trackColor: "#F87171",
       difficulty: "Intermediate",
-      difficultyColor: "#FF9F1C",
+      difficultyColor: "#FBBF24",
       title: "Web Application Security",
       description: "Master web vulnerabilities from OWASP Top 10 to advanced exploitation techniques.",
       rating: "4.9",
@@ -59,12 +59,12 @@ export function CourseCatalogScreen() {
     {
       id: "incident-response",
       icon: Eye,
-      iconColor: "#3B82F6",
-      bgColor: "rgba(59,130,246,0.06)",
+      iconColor: "#60A5FA",
+      bgColor: "rgba(96,165,250,0.06)",
       track: "Blue Team",
-      trackColor: "#3B82F6",
+      trackColor: "#60A5FA",
       difficulty: "Intermediate",
-      difficultyColor: "#FF9F1C",
+      difficultyColor: "#FBBF24",
       title: "Incident Response & Forensics",
       description: "Learn to detect, respond to, and investigate security incidents like a professional.",
       rating: "4.7",
@@ -77,12 +77,12 @@ export function CourseCatalogScreen() {
     {
       id: "malware-analysis",
       icon: Terminal,
-      iconColor: "#A855F7",
-      bgColor: "rgba(168,85,247,0.06)",
+      iconColor: "#C084FC",
+      bgColor: "rgba(192,132,252,0.06)",
       track: "Advanced Ops",
-      trackColor: "#A855F7",
+      trackColor: "#C084FC",
       difficulty: "Advanced",
-      difficultyColor: "#FF3B5C",
+      difficultyColor: "#F87171",
       title: "Advanced Malware Analysis",
       description: "Deep dive into reverse engineering, static and dynamic analysis of sophisticated malware.",
       rating: "4.9",
@@ -121,10 +121,10 @@ export function CourseCatalogScreen() {
   };
 
   return (
-    <div className="h-screen bg-[#0A0E1A] pb-[100px] max-w-[393px] mx-auto overflow-y-auto">
+    <div className="h-screen bg-[#0D0B1A] pb-[100px] max-w-[393px] mx-auto overflow-y-auto">
       {/* Header */}
       <div className="px-6 pt-12 pb-4">
-        <h1 className="text-[#EAEEFF]" style={{ fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', monospace" }}>
+        <h1 className="text-[#F0ECF9]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
           Courses
         </h1>
       </div>
@@ -132,13 +132,13 @@ export function CourseCatalogScreen() {
       {/* Search bar */}
       <div className="px-6 mb-3">
         <div className="relative">
-          <Search className="absolute left-3 top-3 text-[#5A6599]" size={18} />
+          <Search className="absolute left-3 top-3 text-[#655C80]" size={18} />
           <input
             type="text"
             placeholder="Search courses..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-[#1E2545] border border-[#2A3362] text-[#EAEEFF] placeholder:text-[#5A6599] focus:outline-none focus:border-[#00E5FF] transition-colors"
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-[rgba(30,22,56,0.65)] border border-[rgba(80,60,140,0.3)] text-[#F0ECF9] placeholder:text-[#655C80] focus:outline-none focus:border-[#A855F7] transition-colors"
           />
         </div>
       </div>
@@ -152,15 +152,11 @@ export function CourseCatalogScreen() {
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}
-              className={`px-4 py-2 rounded-full border text-[13px] flex items-center gap-2 whitespace-nowrap transition-colors ${
-                isActive
-                  ? `border-[${filter.color}] bg-[rgba(0,229,255,0.08)]`
-                  : "border-[#2A3362]"
-              }`}
+              className={`px-4 py-2 rounded-full border text-[13px] flex items-center gap-2 whitespace-nowrap transition-colors`}
               style={{
-                borderColor: isActive ? filter.color : "#2A3362",
+                borderColor: isActive ? filter.color : "rgba(80,60,140,0.3)",
                 backgroundColor: isActive ? `${filter.color}14` : "transparent",
-                color: isActive ? filter.color : "#8B95C9",
+                color: isActive ? filter.color : "#9B8FBB",
               }}
             >
               <Icon size={14} />
@@ -174,8 +170,8 @@ export function CourseCatalogScreen() {
       <div className="px-6 space-y-4">
         {filteredCourses.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-[15px] text-[#5A6599]">No courses found</p>
-            <button onClick={() => { setSearchQuery(""); setActiveFilter("all"); }} className="text-[13px] text-[#00E5FF] mt-2">
+            <p className="text-[15px] text-[#655C80]">No courses found</p>
+            <button onClick={() => { setSearchQuery(""); setActiveFilter("all"); }} className="text-[13px] text-[#A855F7] mt-2">
               Clear filters
             </button>
           </div>
@@ -187,25 +183,25 @@ export function CourseCatalogScreen() {
             <button
               key={course.id}
               onClick={() => navigate(`/course/${course.id}`)}
-              className="w-full rounded-2xl bg-[#1E2545] border border-[#2A3362] overflow-hidden active:bg-[#252D55] transition-colors text-left relative"
+              className="w-full rounded-2xl bg-[rgba(30,22,56,0.65)] border border-[rgba(80,60,140,0.3)] overflow-hidden active:bg-[rgba(40,30,72,0.7)] transition-colors text-left relative"
             >
               {/* Thumbnail */}
               <div
                 className="h-[120px] flex items-center justify-center relative"
                 style={{ backgroundColor: course.bgColor }}
               >
-                <Icon size={32} stroke={locked ? "#5A6599" : course.iconColor} />
+                <Icon size={32} stroke={locked ? "#655C80" : course.iconColor} />
                 {locked && (
-                  <div className="absolute inset-0 bg-[rgba(10,14,26,0.6)] flex items-center justify-center">
-                    <Lock size={24} stroke="#5A6599" />
+                  <div className="absolute inset-0 bg-[rgba(13,11,26,0.6)] flex items-center justify-center">
+                    <Lock size={24} stroke="#655C80" />
                   </div>
                 )}
                 {course.tier && (
                   <div
                     className="absolute top-3 right-3 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
                     style={{
-                      backgroundColor: course.tier === "MAX" ? "#FFD700" : "#00E5FF",
-                      color: "#0A0E1A",
+                      backgroundColor: course.tier === "MAX" ? "#E8A838" : "#A855F7",
+                      color: "#0D0B1A",
                     }}
                   >
                     {course.tier}
@@ -238,36 +234,36 @@ export function CourseCatalogScreen() {
                 </div>
 
                 {/* Title */}
-                <h4 className="text-[#EAEEFF] mb-2">{course.title}</h4>
+                <h4 className="text-[#F0ECF9] mb-2">{course.title}</h4>
 
                 {/* Description */}
-                <p className="text-[13px] text-[#8B95C9] mb-3 line-clamp-2 leading-relaxed">
+                <p className="text-[13px] text-[#9B8FBB] mb-3 line-clamp-2 leading-relaxed">
                   {course.description}
                 </p>
 
                 {/* Meta */}
                 <div className="flex items-center gap-4 mb-3 flex-wrap">
                   <div className="flex items-center gap-1">
-                    <Star size={12} fill="#FF9F1C" stroke="#FF9F1C" />
-                    <span className="text-[11px] text-[#EAEEFF]">{course.rating}</span>
-                    <span className="text-[11px] text-[#5A6599]">({course.reviews})</span>
+                    <Star size={12} fill="#E8A838" stroke="#E8A838" />
+                    <span className="text-[11px] text-[#F0ECF9]">{course.rating}</span>
+                    <span className="text-[11px] text-[#655C80]">({course.reviews})</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Clock size={12} stroke="#5A6599" />
-                    <span className="text-[11px] text-[#5A6599]">{course.duration}</span>
+                    <Clock size={12} stroke="#655C80" />
+                    <span className="text-[11px] text-[#655C80]">{course.duration}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Users size={12} stroke="#5A6599" />
-                    <span className="text-[11px] text-[#5A6599]">{course.students}</span>
+                    <Users size={12} stroke="#655C80" />
+                    <span className="text-[11px] text-[#655C80]">{course.students}</span>
                   </div>
                 </div>
 
                 {/* Instructor */}
                 <div className="flex items-center gap-2">
-                  <div className="w-[22px] h-[22px] rounded-full bg-[#1A2038] flex items-center justify-center">
-                    <User size={12} stroke="#5A6599" />
+                  <div className="w-[22px] h-[22px] rounded-full bg-[#1C1633] flex items-center justify-center">
+                    <User size={12} stroke="#655C80" />
                   </div>
-                  <span className="text-[13px] text-[#8B95C9]">{course.instructor}</span>
+                  <span className="text-[13px] text-[#9B8FBB]">{course.instructor}</span>
                 </div>
               </div>
             </button>
