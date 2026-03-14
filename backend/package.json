@@ -1,0 +1,27 @@
+{
+  "name": "cyberscout-backend",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "concurrently npm:dev:*",
+    "dev:gateway": "npm run dev --workspace=services/api-gateway",
+    "dev:auth": "npm run dev --workspace=services/auth-service",
+    "dev:course": "npm run dev --workspace=services/course-service",
+    "dev:chat": "npm run dev --workspace=services/chat-service",
+    "dev:billing": "npm run dev --workspace=services/billing-service",
+    "dev:live": "npm run dev --workspace=services/live-service",
+    "dev:mentor": "npm run dev --workspace=services/mentor-service",
+    "build": "npm run build --workspaces",
+    "lint": "eslint packages/ services/ --ext .ts",
+    "test": "jest --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
+    "typescript": "^5.5.0"
+  }
+}

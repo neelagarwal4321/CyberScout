@@ -1,0 +1,42 @@
+import { createBrowserRouter } from "react-router";
+import { LoginScreen } from "./screens/LoginScreen";
+import { SignupScreen } from "./screens/SignupScreen";
+import { ForgotPasswordScreen } from "./screens/ForgotPasswordScreen";
+import { DashboardScreen } from "./screens/DashboardScreen";
+import { NotificationsScreen } from "./screens/NotificationsScreen";
+import { CourseCatalogScreen } from "./screens/CourseCatalogScreen";
+import { CourseDetailScreen } from "./screens/CourseDetailScreen";
+import { LecturePlayerScreen } from "./screens/LecturePlayerScreen";
+import { LiveLectureScreen } from "./screens/LiveLectureScreen";
+import { ChatScreen } from "./screens/ChatScreen";
+import { ChatHistoryScreen } from "./screens/ChatHistoryScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
+import { SubscriptionScreen } from "./screens/SubscriptionScreen";
+import { MentorListScreen } from "./screens/MentorListScreen";
+import { CertificatesScreen } from "./screens/CertificatesScreen";
+import { BookingScreen } from "./screens/BookingScreen";
+import { AppearanceScreen } from "./screens/AppearanceScreen";
+import { AccountScreen } from "./screens/AccountScreen";
+
+export const router = createBrowserRouter([
+  { path: "/", Component: LoginScreen },
+  { path: "/signup", Component: SignupScreen },
+  { path: "/forgot-password", Component: ForgotPasswordScreen },
+  { path: "/dashboard", Component: DashboardScreen },
+  { path: "/notifications", Component: NotificationsScreen },
+  { path: "/courses", Component: CourseCatalogScreen },
+  { path: "/course/:courseId", Component: CourseDetailScreen },
+  { path: "/lecture/:lectureId", Component: LecturePlayerScreen },
+  { path: "/live/:sessionId", Component: LiveLectureScreen },
+  { path: "/chat", Component: ChatScreen },
+  { path: "/chat/history", Component: ChatHistoryScreen },
+  { path: "/profile", Component: ProfileScreen },
+  { path: "/settings", Component: SettingsScreen },
+  { path: "/subscription", Component: SubscriptionScreen },
+  { path: "/mentors", Component: MentorListScreen },
+  { path: "/certificates", Component: CertificatesScreen },
+  { path: "/booking", Component: BookingScreen },
+  { path: "/appearance", Component: AppearanceScreen },
+  { path: "/account", Component: AccountScreen },
+]);
