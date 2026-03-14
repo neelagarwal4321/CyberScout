@@ -40,7 +40,7 @@ export function AccountScreen() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-12">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-12">
       {/* Header */}
       <div className="px-6 pt-12 pb-6 border-b border-[#2A3362]">
         <button onClick={() => section === "main" ? navigate("/settings") : setSection("main")} className="mb-4">

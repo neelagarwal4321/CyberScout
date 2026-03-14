@@ -15,7 +15,7 @@ export function AppearanceScreen() {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-12">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-12">
       {/* Header */}
       <div className="px-6 pt-12 pb-6 border-b border-[#2A3362]">
         <button onClick={() => navigate("/settings")} className="mb-4">

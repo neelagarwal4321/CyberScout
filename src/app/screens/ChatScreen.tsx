@@ -108,7 +108,7 @@ export function ChatScreen() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] flex flex-col max-w-[393px] mx-auto pb-[100px]">
+    <div className="h-screen bg-[#0A0E1A] flex flex-col max-w-[393px] mx-auto pb-[100px]">
       {/* Header */}
       <div className="px-6 py-4 border-b border-[#2A3362] flex items-center justify-between flex-shrink-0">
         <button onClick={() => navigate("/chat/history")}>

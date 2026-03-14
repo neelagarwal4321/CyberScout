@@ -11,7 +11,7 @@ export default function App() {
       <AuthProvider>
         <CourseProvider>
           <ChatProvider>
-            <div className="min-h-screen bg-[#0A0E1A]">
+            <div className="h-screen overflow-hidden bg-[#0A0E1A]">
               <RouterProvider router={router} />
             </div>
           </ChatProvider>

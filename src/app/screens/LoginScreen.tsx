@@ -44,7 +44,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] flex flex-col items-center justify-center px-6 max-w-[393px] mx-auto relative overflow-hidden">
+    <div className="h-screen bg-[#0A0E1A] flex flex-col items-center justify-center px-6 max-w-[393px] mx-auto relative overflow-hidden">
       {/* Matrix rain accent lines */}
       <div className="absolute top-0 left-[10%] w-[1.5px] h-[300px] bg-[#00E5FF] opacity-[0.03]"></div>
       <div className="absolute top-0 left-[30%] w-[1.5px] h-[300px] bg-[#00E5FF] opacity-[0.05]"></div>

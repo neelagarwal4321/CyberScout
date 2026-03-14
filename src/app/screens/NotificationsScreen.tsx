@@ -22,7 +22,7 @@ export function NotificationsScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto">
       {/* Header */}
       <div className="px-6 pt-12 pb-6 flex items-center gap-4 border-b border-[#2A3362]">
         <button onClick={() => navigate("/dashboard")}>

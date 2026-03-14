@@ -22,7 +22,7 @@ export function SignupScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] px-6 pt-12 pb-24 max-w-[393px] mx-auto overflow-y-auto">
+    <div className="h-screen bg-[#0A0E1A] px-6 pt-12 pb-24 max-w-[393px] mx-auto overflow-y-auto">
       {/* Back button */}
       <button
         onClick={() => navigate("/")}

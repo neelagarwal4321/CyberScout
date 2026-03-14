@@ -5,7 +5,7 @@ export function ForgotPasswordScreen() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] flex flex-col items-center justify-center px-6 max-w-[393px] mx-auto">
+    <div className="h-screen bg-[#0A0E1A] flex flex-col items-center justify-center px-6 max-w-[393px] mx-auto">
       {/* Back button */}
       <button
         onClick={() => navigate("/")}

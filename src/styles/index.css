@@ -2,11 +2,23 @@
 @import './tailwind.css';
 @import './theme.css';
 
+/* Lock viewport — no browser-level scrolling */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 /* Mobile App Container */
 body {
   max-width: 393px;
   margin: 0 auto;
-  background: #000;
 }
 
 /* Utility classes */

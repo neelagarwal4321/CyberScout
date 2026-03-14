@@ -44,7 +44,7 @@ export function LiveLectureScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto flex flex-col">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto flex flex-col">
       {/* Live video area */}
       <div className="h-[340px] bg-gradient-to-b from-[#1A2038] to-[#0A0E1A] relative flex items-center justify-center flex-shrink-0">
         {/* LIVE badge */}

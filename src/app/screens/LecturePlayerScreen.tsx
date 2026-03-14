@@ -38,7 +38,7 @@ export function LecturePlayerScreen() {
   const nextLectureId = lectureId ? String(Number(lectureId.replace("l", "")) + 1) : "l2";
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto">
       {/* Video player */}
       <div className="h-[220px] bg-[#050810] relative flex items-center justify-center">
         <button

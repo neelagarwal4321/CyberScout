@@ -46,7 +46,7 @@ export function BookingScreen() {
 
   if (booked) {
     return (
-      <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto flex flex-col items-center justify-center px-6 text-center">
+      <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto flex flex-col items-center justify-center px-6 text-center">
         <div className="w-20 h-20 rounded-full bg-[rgba(57,255,20,0.08)] border border-[rgba(57,255,20,0.25)] flex items-center justify-center mb-6">
           <span className="text-[40px]">✓</span>
         </div>
@@ -70,7 +70,7 @@ export function BookingScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-8">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto overflow-y-auto pb-8">
       {/* Header */}
       <div className="px-6 pt-12 pb-6 border-b border-[#2A3362]">
         <button onClick={() => navigate("/mentors")} className="mb-4">

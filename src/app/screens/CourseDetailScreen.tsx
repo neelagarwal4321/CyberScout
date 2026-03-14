@@ -11,7 +11,7 @@ export function CourseDetailScreen() {
   const isMax = courseId === "malware-analysis";
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] max-w-[393px] mx-auto pb-24">
+    <div className="h-screen bg-[#0A0E1A] max-w-[393px] mx-auto pb-24 overflow-y-auto">
       {/* Hero section */}
       <div className="h-[180px] bg-[rgba(0,229,255,0.03)] relative flex items-center justify-center">
         <Shield size={64} stroke="rgba(0,229,255,0.37)" />

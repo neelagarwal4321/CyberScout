@@ -71,7 +71,7 @@ export function SubscriptionScreen() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0A0E1A] pb-12 max-w-[393px] mx-auto overflow-y-auto">
+    <div className="h-screen bg-[#0A0E1A] pb-12 max-w-[393px] mx-auto overflow-y-auto">
       {/* Header */}
       <div className="px-6 pt-12 pb-6">
         <button onClick={() => navigate("/settings")} className="mb-4">
