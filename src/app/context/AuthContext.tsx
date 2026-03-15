@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { api, setTokens, clearTokens, getAccessToken } from "../../services/api";
 
 export type SubscriptionTier = "free" | "pro" | "max";
 
@@ -9,60 +10,93 @@ export interface User {
   avatar?: string;
   tier: SubscriptionTier;
   xp: number;
-  level: number;
+  level: string;
   streak: number;
   joinedAt: string;
+  interests?: string[];
 }
 
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   loginWithApple: () => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  signup: (email: string, password: string, name: string, options?: { experienceLevel?: string; interests?: string[] }) => Promise<void>;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
 }
 
-const MOCK_USER: User = {
-  id: "user-001",
-  name: "Alex Chen",
-  email: "alex@example.com",
-  tier: "free",
-  xp: 2840,
-  level: 12,
-  streak: 7,
-  joinedAt: "2024-01-15",
-};
+interface AuthResponse {
+  data: {
+    user: User;
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number };
+  };
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (_email: string, _password: string) => {
-    // Mock: simulate API delay
-    await new Promise((r) => setTimeout(r, 500));
-    setUser(MOCK_USER);
+  // Restore session on mount
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
+    api
+      .get<{ data: User }>("/auth/me")
+      .then((res) => setUser(res.data))
+      .catch(() => clearTokens())
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const res = await api.post<AuthResponse>("/auth/login", { email, password });
+    setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
+    setUser(res.data.user);
   };
 
   const loginWithGoogle = async () => {
-    await new Promise((r) => setTimeout(r, 500));
-    setUser({ ...MOCK_USER, name: "Alex Chen (Google)" });
+    // OAuth flow: redirect to backend OAuth endpoint
+    window.location.href = `${import.meta.env["VITE_API_URL"] ?? "http://localhost:3000/api"}/auth/oauth/google`;
   };
 
   const loginWithApple = async () => {
-    await new Promise((r) => setTimeout(r, 500));
-    setUser({ ...MOCK_USER, name: "Alex Chen (Apple)" });
+    window.location.href = `${import.meta.env["VITE_API_URL"] ?? "http://localhost:3000/api"}/auth/oauth/apple`;
   };
 
-  const signup = async (_email: string, _password: string, name: string) => {
-    await new Promise((r) => setTimeout(r, 500));
-    setUser({ ...MOCK_USER, name });
+  const signup = async (
+    email: string,
+    password: string,
+    name: string,
+    options?: { experienceLevel?: string; interests?: string[] },
+  ) => {
+    const res = await api.post<AuthResponse>("/auth/signup", {
+      email,
+      password,
+      name,
+      experienceLevel: options?.experienceLevel,
+      interests: options?.interests,
+    });
+    setTokens(res.data.tokens.accessToken, res.data.tokens.refreshToken);
+    setUser(res.data.user);
   };
 
-  const logout = () => setUser(null);
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem("cs_refresh_token");
+      await api.post("/auth/logout", { refreshToken }).catch(() => {});
+    } finally {
+      clearTokens();
+      setUser(null);
+    }
+  };
 
   const updateUser = (updates: Partial<User>) => {
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
@@ -70,7 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, loginWithGoogle, loginWithApple, signup, logout, updateUser }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        loginWithGoogle,
+        loginWithApple,
+        signup,
+        logout,
+        updateUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

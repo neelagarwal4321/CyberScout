@@ -1,18 +1,22 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { api } from "../../services/api";
 
-export type Track = "web" | "network" | "malware" | "cloud" | "pentest" | "forensics";
+export type Track = "web" | "network" | "malware" | "cloud" | "pentest" | "forensics" | string;
 
 export interface Lecture {
   id: string;
   title: string;
-  duration: string;
-  type: "video" | "lab" | "quiz";
+  durationSeconds?: number;
+  duration?: string;
+  type: "video" | "lab" | "quiz" | "reading";
   free?: boolean;
+  order: number;
 }
 
 export interface Module {
   id: string;
   title: string;
+  order: number;
   lectures: Lecture[];
 }
 
@@ -20,15 +24,19 @@ export interface Course {
   id: string;
   title: string;
   description: string;
-  instructor: string;
+  instructorName?: string;
+  instructor?: string;
   track: Track;
   difficulty: "beginner" | "intermediate" | "advanced";
   tier: "free" | "pro" | "max";
-  duration: string;
-  students: number;
+  durationHours?: number;
+  duration?: string;
+  enrolledCount?: number;
+  students?: number;
   rating: number;
   modules: Module[];
   tags: string[];
+  prerequisites?: string[];
 }
 
 export interface LectureProgress {
@@ -38,160 +46,138 @@ export interface LectureProgress {
 }
 
 export interface Enrollment {
+  id?: string;
   courseId: string;
   enrolledAt: Date;
+  lastAccessedAt?: Date;
+  completedAt?: Date;
   progress: Record<string, LectureProgress>;
+}
+
+export interface DashboardSummary {
+  user: { name: string; level: string; xp: number; streak: number; tier: string };
+  currentCourse: { id: string; title: string; progress: number } | null;
+  completedCourses: number;
+  weekActivity: number[];
+  recommendations: Array<{ courseId: string; title: string; track: string; reason: string; score: number }>;
+  topicMastery: Array<{ topic: string; score: number }>;
 }
 
 interface CourseContextValue {
   courses: Course[];
   enrollments: Enrollment[];
+  dashboard: DashboardSummary | null;
+  isLoadingCourses: boolean;
   isEnrolled: (courseId: string) => boolean;
-  enrollInCourse: (courseId: string) => void;
-  updateProgress: (courseId: string, lectureId: string, seconds: number) => void;
-  getProgress: (courseId: string) => number; // 0-100
+  enrollInCourse: (courseId: string) => Promise<void>;
+  updateProgress: (courseId: string, lectureId: string, seconds: number, completed?: boolean) => Promise<void>;
+  getProgress: (courseId: string) => number;
   getCourse: (courseId: string) => Course | undefined;
+  fetchCourses: (filters?: { track?: string; difficulty?: string; search?: string }) => Promise<void>;
+  fetchCourse: (courseId: string) => Promise<Course | undefined>;
+  fetchDashboard: () => Promise<void>;
   bookmarks: string[];
   toggleBookmark: (courseId: string) => void;
 }
 
-const MOCK_COURSES: Course[] = [
-  {
-    id: "web-security",
-    title: "Web Application Security",
-    description: "Master the art of securing web applications. Learn OWASP Top 10, SQL injection, XSS, CSRF, and more.",
-    instructor: "Dr. Sarah Kim",
-    track: "web",
-    difficulty: "beginner",
-    tier: "free",
-    duration: "12h 30m",
-    students: 8420,
-    rating: 4.8,
-    tags: ["OWASP", "XSS", "SQL Injection"],
-    modules: [
-      {
-        id: "m1",
-        title: "Introduction to Web Security",
-        lectures: [
-          { id: "l1", title: "Course Overview", duration: "5:30", type: "video", free: true },
-          { id: "l2", title: "HTTP Protocol Deep Dive", duration: "18:45", type: "video", free: true },
-          { id: "l3", title: "OWASP Top 10 Overview", duration: "22:10", type: "video", free: true },
-        ],
-      },
-      {
-        id: "m2",
-        title: "Injection Attacks",
-        lectures: [
-          { id: "l4", title: "SQL Injection Fundamentals", duration: "25:30", type: "video" },
-          { id: "l5", title: "Blind & Time-Based SQLi", duration: "20:15", type: "video" },
-          { id: "l6", title: "SQLi Lab: Vulnerable App", duration: "35:00", type: "lab" },
-        ],
-      },
-      {
-        id: "m3",
-        title: "Cross-Site Scripting",
-        lectures: [
-          { id: "l7", title: "Reflected XSS", duration: "18:20", type: "video" },
-          { id: "l8", title: "Stored & DOM XSS", duration: "22:45", type: "video" },
-          { id: "l9", title: "XSS Defense Strategies", duration: "15:30", type: "video" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "network-pentest",
-    title: "Network Penetration Testing",
-    description: "Learn professional penetration testing methodologies, tools, and techniques used by real security professionals.",
-    instructor: "Marcus Rivera",
-    track: "network",
-    difficulty: "intermediate",
-    tier: "pro",
-    duration: "18h 45m",
-    students: 5230,
-    rating: 4.9,
-    tags: ["Nmap", "Metasploit", "Wireshark"],
-    modules: [
-      {
-        id: "m1",
-        title: "Recon & Enumeration",
-        lectures: [
-          { id: "l1", title: "Passive Reconnaissance", duration: "28:00", type: "video", free: true },
-          { id: "l2", title: "Active Scanning with Nmap", duration: "35:20", type: "video" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "malware-analysis",
-    title: "Malware Analysis & Reverse Engineering",
-    description: "Analyze real-world malware samples, understand their behavior, and develop detection signatures.",
-    instructor: "Dr. Elena Vasquez",
-    track: "malware",
-    difficulty: "advanced",
-    tier: "pro",
-    duration: "24h 15m",
-    students: 3180,
-    rating: 4.7,
-    tags: ["IDA Pro", "Ghidra", "Assembly"],
-    modules: [],
-  },
-  {
-    id: "cloud-security",
-    title: "Cloud Security Architecture",
-    description: "Secure AWS, Azure, and GCP environments. IAM, network policies, monitoring, and incident response.",
-    instructor: "James Park",
-    track: "cloud",
-    difficulty: "intermediate",
-    tier: "max",
-    duration: "15h 20m",
-    students: 4750,
-    rating: 4.6,
-    tags: ["AWS", "Azure", "IAM"],
-    modules: [],
-  },
-  {
-    id: "forensics-101",
-    title: "Digital Forensics & Incident Response",
-    description: "Investigate security incidents, perform forensic analysis, and build incident response playbooks.",
-    instructor: "Agent Taylor",
-    track: "forensics",
-    difficulty: "intermediate",
-    tier: "pro",
-    duration: "16h 00m",
-    students: 2960,
-    rating: 4.8,
-    tags: ["Autopsy", "Volatility", "DFIR"],
-    modules: [],
-  },
-];
-
 const CourseContext = createContext<CourseContextValue | null>(null);
 
 export function CourseProvider({ children }: { children: ReactNode }) {
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([
-    {
-      courseId: "web-security",
-      enrolledAt: new Date("2024-02-01"),
-      progress: {
-        l1: { lectureId: "l1", secondsWatched: 330, completed: true },
-        l2: { lectureId: "l2", secondsWatched: 1125, completed: true },
-        l3: { lectureId: "l3", secondsWatched: 600, completed: false },
-      },
-    },
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
+
+  // Normalise API course shape to frontend shape
+  const normaliseCourse = (c: any): Course => ({
+    ...c,
+    instructor: c.instructorName ?? c.instructor,
+    students: c.enrolledCount ?? c.students,
+    duration: c.durationHours ? `${c.durationHours}h` : c.duration,
+    modules: (c.modules ?? []).map((m: any) => ({
+      ...m,
+      lectures: (m.lectures ?? []).map((l: any) => ({
+        ...l,
+        duration: l.durationSeconds
+          ? `${Math.floor(l.durationSeconds / 60)}:${String(l.durationSeconds % 60).padStart(2, "0")}`
+          : l.duration,
+      })),
+    })),
+  });
+
+  const fetchCourses = useCallback(async (filters?: { track?: string; difficulty?: string; search?: string }) => {
+    setIsLoadingCourses(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters?.track) params.set("track", filters.track);
+      if (filters?.difficulty) params.set("difficulty", filters.difficulty);
+      if (filters?.search) params.set("search", filters.search);
+
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const res = await api.get<{ data: any[]; meta: object }>(`/courses${query}`);
+      setCourses(res.data.map(normaliseCourse));
+    } catch {
+      // fail silently — keep whatever courses we had
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  }, []);
+
+  const fetchCourse = useCallback(async (courseId: string): Promise<Course | undefined> => {
+    try {
+      const res = await api.get<{ data: any }>(`/courses/${courseId}`);
+      const course = normaliseCourse(res.data);
+      setCourses((prev) => {
+        const idx = prev.findIndex((c) => c.id === courseId);
+        if (idx === -1) return [...prev, course];
+        const updated = [...prev];
+        updated[idx] = course;
+        return updated;
+      });
+      return course;
+    } catch {
+      return undefined;
+    }
+  }, []);
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: DashboardSummary }>("/dashboard/summary");
+      setDashboard(res.data);
+    } catch {
+      // Not authenticated yet — ignore
+    }
+  }, []);
+
+  // Load courses on mount
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const isEnrolled = (courseId: string) => enrollments.some((e) => e.courseId === courseId);
 
-  const enrollInCourse = (courseId: string) => {
-    if (isEnrolled(courseId)) return;
-    setEnrollments((prev) => [
-      ...prev,
-      { courseId, enrolledAt: new Date(), progress: {} },
-    ]);
+  const enrollInCourse = async (courseId: string): Promise<void> => {
+    const res = await api.post<{ data: any }>(`/courses/${courseId}/enroll`, {});
+    const enrollment: Enrollment = {
+      id: res.data.id,
+      courseId,
+      enrolledAt: new Date(res.data.enrolledAt ?? Date.now()),
+      progress: {},
+    };
+    setEnrollments((prev) => {
+      if (prev.some((e) => e.courseId === courseId)) return prev;
+      return [...prev, enrollment];
+    });
   };
 
-  const updateProgress = (courseId: string, lectureId: string, seconds: number) => {
+  const updateProgress = async (
+    courseId: string,
+    lectureId: string,
+    seconds: number,
+    completed = false,
+  ): Promise<void> => {
+    // Optimistic local update
     setEnrollments((prev) =>
       prev.map((e) => {
         if (e.courseId !== courseId) return e;
@@ -203,16 +189,26 @@ export function CourseProvider({ children }: { children: ReactNode }) {
             [lectureId]: {
               lectureId,
               secondsWatched: Math.max(existing?.secondsWatched ?? 0, seconds),
-              completed: seconds > 0,
+              completed: completed || existing?.completed || false,
             },
           },
         };
-      })
+      }),
     );
+
+    // Persist to server
+    try {
+      await api.post(`/courses/${courseId}/lectures/${lectureId}/progress`, {
+        completed,
+        watchedSeconds: seconds,
+      });
+    } catch {
+      // Revert is not critical — server will reconcile on next load
+    }
   };
 
-  const getProgress = (courseId: string) => {
-    const course = MOCK_COURSES.find((c) => c.id === courseId);
+  const getProgress = (courseId: string): number => {
+    const course = courses.find((c) => c.id === courseId);
     const enrollment = enrollments.find((e) => e.courseId === courseId);
     if (!course || !enrollment) return 0;
     const totalLectures = course.modules.flatMap((m) => m.lectures).length;
@@ -221,17 +217,32 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     return Math.round((completed / totalLectures) * 100);
   };
 
-  const getCourse = (courseId: string) => MOCK_COURSES.find((c) => c.id === courseId);
+  const getCourse = (courseId: string) => courses.find((c) => c.id === courseId);
 
   const toggleBookmark = (courseId: string) => {
     setBookmarks((prev) =>
-      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId],
     );
   };
 
   return (
     <CourseContext.Provider
-      value={{ courses: MOCK_COURSES, enrollments, isEnrolled, enrollInCourse, updateProgress, getProgress, getCourse, bookmarks, toggleBookmark }}
+      value={{
+        courses,
+        enrollments,
+        dashboard,
+        isLoadingCourses,
+        isEnrolled,
+        enrollInCourse,
+        updateProgress,
+        getProgress,
+        getCourse,
+        fetchCourses,
+        fetchCourse,
+        fetchDashboard,
+        bookmarks,
+        toggleBookmark,
+      }}
     >
       {children}
     </CourseContext.Provider>

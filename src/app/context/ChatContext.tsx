@@ -1,27 +1,42 @@
-import { createContext, useContext, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useState, useRef, useEffect, ReactNode } from "react";
+import { api } from "../../services/api";
+import { streamChat } from "../../services/chatService";
+import type { SSEEvent } from "../../services/chatService";
 
 export interface Citation {
   source: string;
+  documentTitle?: string;
   section: string;
   url?: string;
+  relevanceScore?: number;
+}
+
+export interface QuizPayload {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  topic: string;
+  difficulty: string;
 }
 
 export interface ChatMessage {
   id: string;
-  role: "user" | "ai";
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
   citations?: Citation[];
   suggestedTopics?: string[];
+  quiz?: QuizPayload;
   isStreaming?: boolean;
 }
 
 export interface Conversation {
   id: string;
   title: string;
-  lastMessage: string;
-  timestamp: Date;
-  messages: ChatMessage[];
+  topic?: string;
+  updatedAt: Date;
+  _count?: { messages: number };
 }
 
 interface ChatContextValue {
@@ -29,88 +44,73 @@ interface ChatContextValue {
   activeConversationId: string | null;
   messages: ChatMessage[];
   isStreaming: boolean;
-  sendMessage: (text: string) => void;
-  createConversation: () => string;
-  loadConversation: (id: string) => void;
-  deleteConversation: (id: string) => void;
+  quiz: QuizPayload | null;
+  suggestedTopics: string[];
+  sendMessage: (text: string, context?: { currentTopic?: string; courseId?: string }) => void;
+  createConversation: () => Promise<string>;
+  loadConversation: (id: string) => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
+  submitQuizAnswer: (topic: string, correct: boolean) => Promise<void>;
+  dismissQuiz: () => void;
 }
-
-const MOCK_RESPONSES = [
-  {
-    content:
-      "SQL injection is a code injection technique that exploits vulnerabilities in an application's database layer.\n\nAn attacker can insert or **manipulate SQL queries** to:\n- Bypass authentication\n- Access or modify data\n- Execute admin operations on the database\n\n```sql\n-- Vulnerable query\nSELECT * FROM users WHERE email = '" + "' OR '1'='1" + "';\n```\n\nThe best defenses are **parameterized queries** and prepared statements.",
-    citations: [{ source: "OWASP", section: "A03:2021 – Injection" }],
-    suggestedTopics: ["Blind SQL Injection", "Prepared Statements", "NoSQL Injection"],
-  },
-  {
-    content:
-      "Cross-Site Scripting (XSS) allows attackers to inject malicious scripts into web pages viewed by other users.\n\nThere are three main types:\n1. **Reflected XSS** — payload comes from the request\n2. **Stored XSS** — payload is saved in the database\n3. **DOM-based XSS** — payload manipulates the DOM\n\nAlways encode output and use a Content Security Policy (CSP).",
-    citations: [{ source: "OWASP", section: "A07:2021 – XSS" }],
-    suggestedTopics: ["Content Security Policy", "DOM XSS", "Stored vs Reflected XSS"],
-  },
-  {
-    content:
-      "Great question! Let me explain how **network reconnaissance** works in a penetration testing context.\n\nCommon tools:\n- `nmap` — port scanning and service detection\n- `whois` — domain registration info\n- `dig` / `nslookup` — DNS enumeration\n\nAlways ensure you have **written authorization** before conducting any recon.",
-    citations: [{ source: "NIST", section: "SP 800-115 Technical Guide" }],
-    suggestedTopics: ["Nmap Techniques", "Passive Reconnaissance", "OSINT"],
-  },
-];
-
-let msgCounter = 100;
-let convCounter = 10;
-const uid = () => `${++msgCounter}`;
-const cid = () => `conv-${++convCounter}`;
-
-const INITIAL_CONVERSATIONS: Conversation[] = [
-  {
-    id: "conv-1",
-    title: "SQL Injection Basics",
-    lastMessage: "What is SQL injection?",
-    timestamp: new Date(Date.now() - 3600000),
-    messages: [],
-  },
-  {
-    id: "conv-2",
-    title: "XSS Attack Vectors",
-    lastMessage: "Explain cross-site scripting",
-    timestamp: new Date(Date.now() - 86400000),
-    messages: [],
-  },
-];
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const streamRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [quiz, setQuiz] = useState<QuizPayload | null>(null);
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const createConversation = () => {
-    const id = cid();
-    const newConv: Conversation = {
-      id,
-      title: "New Conversation",
-      lastMessage: "",
-      timestamp: new Date(),
-      messages: [],
-    };
-    setConversations((prev) => [newConv, ...prev]);
-    setActiveConversationId(id);
+  // Load conversation list on mount
+  useEffect(() => {
+    api
+      .get<{ data: Conversation[] }>("/chat/conversations")
+      .then((res) =>
+        setConversations(
+          res.data.map((c) => ({ ...c, updatedAt: new Date(c.updatedAt) })),
+        ),
+      )
+      .catch(() => {
+        // Not logged in yet — silently ignore
+      });
+  }, []);
+
+  const createConversation = async (): Promise<string> => {
+    const res = await api.post<{ data: Conversation }>("/chat/conversations", {});
+    const conv = { ...res.data, updatedAt: new Date(res.data.updatedAt) };
+    setConversations((prev) => [conv, ...prev]);
+    setActiveConversationId(conv.id);
     setMessages([]);
-    return id;
+    return conv.id;
   };
 
-  const loadConversation = (id: string) => {
-    const conv = conversations.find((c) => c.id === id);
-    if (conv) {
-      setActiveConversationId(id);
-      setMessages(conv.messages);
-    }
+  const loadConversation = async (id: string): Promise<void> => {
+    const res = await api.get<{
+      data: Array<{ id: string; role: string; content: string; createdAt: string; metadata?: { citations?: Citation[]; suggestedTopics?: string[]; quiz?: QuizPayload } }>;
+    }>(`/chat/conversations/${id}/messages`);
+
+    const msgs: ChatMessage[] = res.data.map((m) => ({
+      id: m.id,
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.content,
+      timestamp: new Date(m.createdAt),
+      citations: m.metadata?.citations,
+      suggestedTopics: m.metadata?.suggestedTopics,
+      quiz: m.metadata?.quiz,
+    }));
+
+    setActiveConversationId(id);
+    setMessages(msgs);
+    setQuiz(null);
+    setSuggestedTopics([]);
   };
 
-  const deleteConversation = (id: string) => {
+  const deleteConversation = async (id: string): Promise<void> => {
+    await api.delete(`/chat/conversations/${id}`);
     setConversations((prev) => prev.filter((c) => c.id !== id));
     if (activeConversationId === id) {
       setActiveConversationId(null);
@@ -118,90 +118,157 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const sendMessage = (text: string) => {
+  const sendMessage = (
+    text: string,
+    context?: { currentTopic?: string; courseId?: string },
+  ) => {
     if (!text.trim() || isStreaming) return;
 
-    // Ensure there's an active conversation
-    let convId = activeConversationId;
-    if (!convId) {
-      convId = createConversation();
-    }
+    // Abort any existing stream
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
+    const convId = activeConversationId;
+
+    // Optimistically add user message
     const userMsg: ChatMessage = {
-      id: uid(),
+      id: `local-${Date.now()}`,
       role: "user",
       content: text,
       timestamp: new Date(),
     };
-
     setMessages((prev) => [...prev, userMsg]);
+    setIsStreaming(true);
+    setQuiz(null);
+    setSuggestedTopics([]);
 
-    // Pick a mock response
-    const mock = MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
-    const fullText = mock.content;
-
-    const aiMsgId = uid();
+    // Placeholder streaming AI message
+    const aiMsgId = `streaming-${Date.now()}`;
     const aiMsg: ChatMessage = {
       id: aiMsgId,
-      role: "ai",
+      role: "assistant",
       content: "",
       timestamp: new Date(),
       isStreaming: true,
     };
-
     setMessages((prev) => [...prev, aiMsg]);
-    setIsStreaming(true);
 
-    let charIndex = 0;
+    const pendingCitations: Citation[] = [];
+    let finalQuiz: QuizPayload | undefined;
+    let finalTopics: string[] = [];
 
-    streamRef.current = setInterval(() => {
-      charIndex += 3; // stream 3 chars per tick for snappiness
-      const streamed = fullText.slice(0, charIndex);
-      const done = charIndex >= fullText.length;
+    streamChat({
+      conversationId: convId ?? undefined,
+      message: text,
+      context,
+      signal: controller.signal,
+      onEvent: (event: SSEEvent) => {
+        switch (event.type) {
+          case "token":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId
+                  ? { ...m, content: m.content + (event["content"] as string) }
+                  : m,
+              ),
+            );
+            break;
 
+          case "citation":
+            pendingCitations.push(event["data"] as Citation);
+            break;
+
+          case "quiz":
+            finalQuiz = event["data"] as QuizPayload;
+            break;
+
+          case "done":
+            finalTopics = (event["suggestedTopics"] as string[]) ?? [];
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId
+                  ? {
+                      ...m,
+                      isStreaming: false,
+                      citations: pendingCitations.length > 0 ? [...pendingCitations] : undefined,
+                      suggestedTopics: finalTopics.length > 0 ? finalTopics : undefined,
+                      quiz: finalQuiz,
+                    }
+                  : m,
+              ),
+            );
+            if (finalQuiz) setQuiz(finalQuiz);
+            if (finalTopics.length > 0) setSuggestedTopics(finalTopics);
+            setIsStreaming(false);
+
+            // Refresh conversation list to pick up new title
+            api
+              .get<{ data: Conversation[] }>("/chat/conversations")
+              .then((res) =>
+                setConversations(
+                  res.data.map((c) => ({ ...c, updatedAt: new Date(c.updatedAt) })),
+                ),
+              )
+              .catch(() => {});
+            break;
+
+          case "error":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === aiMsgId
+                  ? { ...m, isStreaming: false, content: m.content || "Something went wrong. Please try again." }
+                  : m,
+              ),
+            );
+            setIsStreaming(false);
+            break;
+        }
+      },
+      onDone: () => {
+        setIsStreaming(false);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsgId ? { ...m, isStreaming: false } : m,
+          ),
+        );
+      },
+    }).catch((err) => {
+      if (err?.name === "AbortError") return;
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiMsgId
-            ? {
-                ...m,
-                content: done ? fullText : streamed,
-                isStreaming: !done,
-                citations: done ? mock.citations : undefined,
-                suggestedTopics: done ? mock.suggestedTopics : undefined,
-              }
-            : m
-        )
+            ? { ...m, isStreaming: false, content: m.content || "Connection error. Please try again." }
+            : m,
+        ),
       );
-
-      if (done) {
-        clearInterval(streamRef.current!);
-        setIsStreaming(false);
-
-        // Update conversation list
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === convId
-              ? {
-                  ...c,
-                  title: c.title === "New Conversation" ? text.slice(0, 40) : c.title,
-                  lastMessage: text,
-                  timestamp: new Date(),
-                  messages: [
-                    ...c.messages,
-                    userMsg,
-                    { id: aiMsgId, role: "ai", content: fullText, timestamp: new Date(), citations: mock.citations, suggestedTopics: mock.suggestedTopics },
-                  ],
-                }
-              : c
-          )
-        );
-      }
-    }, 30);
+      setIsStreaming(false);
+    });
   };
+
+  const submitQuizAnswer = async (topic: string, correct: boolean): Promise<void> => {
+    await api.post("/chat/quiz/answer", { topic, correct });
+    setQuiz(null);
+  };
+
+  const dismissQuiz = () => setQuiz(null);
 
   return (
     <ChatContext.Provider
-      value={{ conversations, activeConversationId, messages, isStreaming, sendMessage, createConversation, loadConversation, deleteConversation }}
+      value={{
+        conversations,
+        activeConversationId,
+        messages,
+        isStreaming,
+        quiz,
+        suggestedTopics,
+        sendMessage,
+        createConversation,
+        loadConversation,
+        deleteConversation,
+        submitQuizAnswer,
+        dismissQuiz,
+      }}
     >
       {children}
     </ChatContext.Provider>
