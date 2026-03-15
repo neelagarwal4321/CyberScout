@@ -1,0 +1,28 @@
+{
+  "name": "@cyberscout/course-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@cyberscout/auth-middleware": "^1.0.0",
+    "@cyberscout/db-client": "^1.0.0",
+    "@cyberscout/error-handler": "^1.0.0",
+    "@cyberscout/logger": "^1.0.0",
+    "@cyberscout/redis-client": "^1.0.0",
+    "@cyberscout/shared-types": "^1.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.0"
+  }
+}

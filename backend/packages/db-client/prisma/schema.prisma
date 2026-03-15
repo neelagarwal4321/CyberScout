@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ─────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String?  // null for OAuth-only users
+  avatar    String?
+  tier      Tier     @default(free)
+  level     Level    @default(beginner)
+  xp        Int      @default(0)
+  streak    Int      @default(0)
+  interests String[] @default([])
+  joinedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  oauthAccounts  OAuthAccount[]
+  refreshTokens  RefreshToken[]
+  enrollments    Enrollment[]
+  conversations  Conversation[]
+  topicMastery   TopicMastery[]
+  subscription   Subscription?
+  certificates   Certificate[]
+  streakLogs     StreakLog[]
+
+  @@index([email])
+}
+
+enum Tier {
+  free
+  pro
+  max
+}
+
+enum Level {
+  beginner
+  intermediate
+  advanced
+}
+
+model OAuthAccount {
+  id         String @id @default(cuid())
+  userId     String
+  provider   String // 'google' | 'apple'
+  providerId String // Provider's user ID
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}
+
+// ─── Courses ─────────────────────────────────────────────────────────────────
+
+model Course {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  description    String    @db.Text
+  instructorName String
+  track          String    // 'Foundations' | 'Blue Team' | 'Red Team' | etc.
+  difficulty     Level
+  tier           Tier      @default(free)
+  durationHours  Float
+  enrolledCount  Int       @default(0)
+  rating         Float     @default(0)
+  reviewCount    Int       @default(0)
+  tags           String[]  @default([])
+  prerequisites  String[]  @default([]) // Array of course slugs
+  published      Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  modules        Module[]
+  enrollments    Enrollment[]
+  certificates   Certificate[]
+  knowledge      KnowledgeChunk[]
+
+  @@index([track])
+  @@index([difficulty])
+  @@index([tier])
+}
+
+model Module {
+  id       String    @id @default(cuid())
+  courseId String
+  title    String
+  position Int
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lectures Lecture[]
+
+  @@index([courseId])
+}
+
+model Lecture {
+  id       String          @id @default(cuid())
+  moduleId String
+  title    String
+  duration String          // e.g. "15:30"
+  type     LectureType
+  free     Boolean         @default(false)
+  position Int
+  module   Module          @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LectureProgress[]
+
+  @@index([moduleId])
+}
+
+enum LectureType {
+  video
+  lab
+  quiz
+  reading
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  courseId    String
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  user        Course    @relation(fields: [courseId], references: [id])
+  course      User      @relation(fields: [userId], references: [id])
+  lectureProgress LectureProgress[]
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+model LectureProgress {
+  id             String     @id @default(cuid())
+  enrollmentId   String
+  lectureId      String
+  secondsWatched Int        @default(0)
+  completed      Boolean    @default(false)
+  completedAt    DateTime?
+  enrollment     Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lecture        Lecture    @relation(fields: [lectureId], references: [id])
+
+  @@unique([enrollmentId, lectureId])
+}
+
+// ─── Chat / AI ────────────────────────────────────────────────────────────────
+
+model Conversation {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String    @default("New Conversation")
+  topic       String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String       @db.Text
+  citations      Json?        // Citation[]
+  suggestedTopics String[]    @default([])
+  quiz           Json?        // QuizPayload
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+model TopicMastery {
+  id           String    @id @default(cuid())
+  userId       String
+  topic        String
+  masteryScore Int       @default(0) // 0-100
+  quizzesTaken Int       @default(0)
+  quizzesPassed Int      @default(0)
+  lastAssessed DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic])
+  @@index([userId])
+}
+
+// ─── Knowledge Base ───────────────────────────────────────────────────────────
+
+model KnowledgeChunk {
+  id            String  @id @default(cuid())
+  courseId      String?
+  source        String  // 'OWASP' | 'NIST' | 'MITRE' | etc.
+  documentTitle String
+  section       String
+  topic         String
+  difficulty    Level
+  text          String  @db.Text
+  url           String?
+  chunkIndex    Int
+  namespace     String  // Pinecone namespace
+  vectorId      String? // Pinecone vector ID
+  course        Course? @relation(fields: [courseId], references: [id])
+
+  @@index([source])
+  @@index([topic])
+}
+
+// ─── Subscriptions ────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  tier              Tier               @default(free)
+  status            SubscriptionStatus @default(active)
+  stripeCustomerId  String?
+  stripeSubId       String?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  canceled
+  incomplete
+}
+
+// ─── Certificates ─────────────────────────────────────────────────────────────
+
+model Certificate {
+  id          String   @id @default(cuid())
+  userId      String
+  courseId    String
+  certNumber  String   @unique // CS-2025-00001
+  pdfUrl      String?
+  issuedAt    DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      Course   @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+// ─── Gamification ─────────────────────────────────────────────────────────────
+
+model StreakLog {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime @db.Date
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
