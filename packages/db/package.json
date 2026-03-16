@@ -1,0 +1,6 @@
+{
+  "name": "@cyberscout/db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Canonical Prisma schema and DB migrations for CyberScout. All service-level schemas are domain subsets of this one."
+}

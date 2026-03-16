@@ -1,0 +1,421 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// CANONICAL PLATFORM SCHEMA — CyberScout
+// This is the single source of truth for the entire database.
+// Individual service schemas (services/*/prisma/schema.prisma) are domain
+// subsets of this file. To update the schema:
+//   1. Edit this file
+//   2. Run: make sync-schema
+//   3. Run: make migrate
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum subscription_tier {
+  free
+  beginner
+  intermediate
+  pro
+}
+
+enum subscription_status {
+  active
+  cancelled
+  past_due
+  expired
+}
+
+// ── Layer 1: Identity ────────────────────────────────────────────────────────
+
+model users {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  google_id     String            @unique @db.VarChar(255)
+  email         String            @unique @db.VarChar(255)
+  name          String            @db.VarChar(255)
+  avatar_url    String?
+  tier          subscription_tier @default(free)
+  xp_total      Int               @default(0)
+  level         Int               @default(1) @db.SmallInt
+  is_active     Boolean           @default(true)
+  created_at    DateTime          @default(now()) @db.Timestamptz()
+  last_login_at DateTime?         @db.Timestamptz()
+  deleted_at    DateTime?         @db.Timestamptz()
+
+  subscriptions         subscriptions?
+  xp_ledger             xp_ledger[]
+  ai_query_history      ai_query_history[]
+  payments              payments[]
+  course_enrollments    course_enrollments[]
+  user_progress         user_progress[]
+  offline_manifests     offline_manifests[]
+  user_achievements     user_achievements[]
+  leaderboard_snapshots leaderboard_snapshots[]
+  ai_feedback           ai_feedback[]
+  instructed_classes    live_classes[]
+  zoom_sessions         zoom_sessions[]
+  class_registrations   class_registrations[]
+  notifications         notifications[]
+  email_log             email_log[]
+
+  @@index([tier])
+  @@index([xp_total(sort: Desc)])
+  @@index([deleted_at])
+}
+
+model subscriptions {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String              @unique @db.Uuid
+  tier                 subscription_tier   @default(free)
+  status               subscription_status @default(active)
+  razorpay_sub_id      String?             @unique @db.VarChar(255)
+  current_period_start DateTime?           @db.Timestamptz()
+  current_period_end   DateTime?           @db.Timestamptz()
+  cancel_at_period_end Boolean             @default(false)
+  created_at           DateTime            @default(now()) @db.Timestamptz()
+  updated_at           DateTime            @default(now()) @db.Timestamptz()
+
+  users    users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  payments payments[]
+
+  @@index([current_period_end])
+}
+
+model xp_ledger {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String   @db.Uuid
+  delta         Int
+  reason        String   @db.VarChar(100)
+  reference_id  String?  @db.Uuid
+  balance_after Int
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at(sort: Desc)])
+}
+
+model ai_query_history {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String   @db.Uuid
+  query         String
+  response      String
+  course_id     String?  @db.Uuid
+  lesson_id     String?  @db.Uuid
+  tokens_used   Int
+  quota_before  Int
+  model_version String   @db.VarChar(50)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  users       users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  ai_feedback ai_feedback[]
+
+  @@index([user_id, created_at(sort: Desc)])
+}
+
+// ── Layer 2: Billing ─────────────────────────────────────────────────────────
+
+model payments {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String             @db.Uuid
+  subscription_id        String?            @db.Uuid
+  razorpay_order_id      String?            @unique @db.VarChar(255)
+  razorpay_payment_id    String?            @unique @db.VarChar(255)
+  amount_paise           Int
+  currency               String             @default("INR") @db.VarChar(5)
+  status                 String             @default("pending") @db.VarChar(20)
+  tier_purchased         subscription_tier?
+  billing_period         String             @default("monthly") @db.VarChar(10)
+  idempotency_key        String             @unique @db.VarChar(255)
+  razorpay_event_payload Json?
+  created_at             DateTime           @default(now()) @db.Timestamptz()
+
+  users         users          @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  subscriptions subscriptions? @relation(fields: [subscription_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([status])
+}
+
+// ── Layer 3: Content ─────────────────────────────────────────────────────────
+
+model courses {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String            @unique @db.VarChar(100)
+  title         String            @db.VarChar(500)
+  description   String?
+  thumbnail_r2  String?
+  tier_required subscription_tier @default(free)
+  category      String?           @db.VarChar(100)
+  difficulty    Int               @db.SmallInt
+  is_published  Boolean           @default(false)
+  sort_order    Int               @default(0)
+  created_at    DateTime          @default(now()) @db.Timestamptz()
+  updated_at    DateTime          @default(now()) @db.Timestamptz()
+
+  lessons            lessons[]
+  course_enrollments course_enrollments[]
+  knowledge_chunks   knowledge_chunks[]
+
+  @@index([is_published])
+  @@index([tier_required])
+  @@index([category])
+}
+
+model lessons {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  course_id      String            @db.Uuid
+  title          String            @db.VarChar(500)
+  content_r2_key String
+  content_type   String            @default("markdown") @db.VarChar(20)
+  duration_mins  Int?              @db.SmallInt
+  tier_required  subscription_tier @default(free)
+  sort_order     Int               @default(0)
+  xp_reward      Int               @default(50)
+  has_quiz       Boolean           @default(false)
+  is_published   Boolean           @default(false)
+  created_at     DateTime          @default(now()) @db.Timestamptz()
+
+  courses           courses             @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  user_progress     user_progress[]
+  quiz_questions    quiz_questions[]
+  offline_manifests offline_manifests[]
+  knowledge_chunks  knowledge_chunks[]
+
+  @@index([course_id, sort_order])
+}
+
+model course_enrollments {
+  user_id        String    @db.Uuid
+  course_id      String    @db.Uuid
+  enrolled_at    DateTime  @default(now()) @db.Timestamptz()
+  completed_at   DateTime? @db.Timestamptz()
+  xp_bonus_given Boolean   @default(false)
+
+  users   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  courses courses @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, course_id])
+}
+
+// ── Layer 4: Learning ────────────────────────────────────────────────────────
+
+model user_progress {
+  user_id         String    @db.Uuid
+  lesson_id       String    @db.Uuid
+  status          String    @default("in_progress") @db.VarChar(20)
+  score           Int?      @db.SmallInt
+  xp_earned       Int       @default(0)
+  time_spent_secs Int       @default(0)
+  attempt_count   Int       @default(0) @db.SmallInt
+  completed_at    DateTime? @db.Timestamptz()
+  last_position   Int?
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @db.Timestamptz()
+
+  users   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lessons lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, lesson_id])
+  @@index([user_id, status])
+}
+
+model quiz_questions {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lesson_id      String  @db.Uuid
+  question_text  String
+  option_a       String
+  option_b       String
+  option_c       String?
+  option_d       String?
+  correct_option String  @db.VarChar(1)
+  explanation    String?
+  sort_order     Int     @default(0)
+
+  lessons lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@index([lesson_id, sort_order])
+}
+
+model offline_manifests {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  lesson_id    String    @db.Uuid
+  device_id    String    @db.VarChar(255)
+  enc_key_hash String    @db.VarChar(255)
+  expires_at   DateTime  @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  revoked_at   DateTime? @db.Timestamptz()
+
+  users   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lessons lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@index([expires_at])
+}
+
+// ── Layer 5: Engagement ──────────────────────────────────────────────────────
+
+model achievements {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String  @unique @db.VarChar(100)
+  name          String  @db.VarChar(255)
+  description   String?
+  icon_r2_key   String?
+  xp_bonus      Int     @default(0)
+  trigger_type  String  @db.VarChar(50)
+  trigger_value Int?
+  unlock_type   String  @db.VarChar(50)
+  unlock_value  String? @db.VarChar(255)
+  is_active     Boolean @default(true)
+
+  user_achievements user_achievements[]
+}
+
+model user_achievements {
+  user_id        String    @db.Uuid
+  achievement_id String    @db.Uuid
+  earned_at      DateTime  @default(now()) @db.Timestamptz()
+  notified_at    DateTime? @db.Timestamptz()
+  xp_credited    Int       @default(0)
+
+  users        users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  achievements achievements @relation(fields: [achievement_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, achievement_id])
+  @@index([user_id, earned_at(sort: Desc)])
+}
+
+model leaderboard_snapshots {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String   @db.Uuid
+  scope          String   @db.VarChar(20)
+  rank           Int
+  xp_at_time     Int
+  snapshotted_at DateTime @default(now()) @db.Timestamptz()
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([scope, rank])
+}
+
+// ── Layer 6: AI ──────────────────────────────────────────────────────────────
+
+model knowledge_chunks {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  course_id      String            @db.Uuid
+  lesson_id      String            @db.Uuid
+  chunk_index    Int
+  chunk_text     String
+  tier_required  subscription_tier @default(free)
+  token_count    Int
+  created_at     DateTime          @default(now()) @db.Timestamptz()
+  invalidated_at DateTime?         @db.Timestamptz()
+
+  courses courses @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  lessons lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@index([course_id])
+  @@index([lesson_id])
+  @@index([tier_required])
+}
+
+model ai_feedback {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  query_id   String   @db.Uuid
+  user_id    String   @db.Uuid
+  rating     Int      @db.SmallInt
+  comment    String?
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  ai_query_history ai_query_history @relation(fields: [query_id], references: [id], onDelete: Cascade)
+  users            users            @relation(fields: [user_id], references: [id])
+}
+
+// ── Layer 7: Live Class ──────────────────────────────────────────────────────
+
+model live_classes {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String            @db.VarChar(500)
+  description        String?
+  zoom_meeting_id    String            @unique @db.VarChar(100)
+  zoom_join_url      String
+  zoom_password      String?           @db.VarChar(100)
+  tier_required      subscription_tier @default(beginner)
+  instructor_user_id String            @db.Uuid
+  starts_at          DateTime          @db.Timestamptz()
+  duration_mins      Int
+  max_participants   Int?
+  is_published       Boolean           @default(false)
+  recording_r2_key   String?
+  created_at         DateTime          @default(now()) @db.Timestamptz()
+
+  users               users                 @relation(fields: [instructor_user_id], references: [id], onDelete: Restrict)
+  zoom_sessions       zoom_sessions[]
+  class_registrations class_registrations[]
+
+  @@index([starts_at])
+}
+
+model zoom_sessions {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String    @db.Uuid
+  class_id            String    @db.Uuid
+  zoom_participant_id String?   @db.VarChar(100)
+  joined_at           DateTime? @db.Timestamptz()
+  left_at             DateTime? @db.Timestamptz()
+  duration_mins       Int?
+  xp_earned           Int       @default(0)
+  attendance_valid    Boolean   @default(false)
+
+  users        users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  live_classes live_classes @relation(fields: [class_id], references: [id], onDelete: Cascade)
+}
+
+model class_registrations {
+  user_id       String   @db.Uuid
+  class_id      String   @db.Uuid
+  registered_at DateTime @default(now()) @db.Timestamptz()
+  reminder_sent Boolean  @default(false)
+
+  users        users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  live_classes live_classes @relation(fields: [class_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, class_id])
+}
+
+model notifications {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  type         String    @db.VarChar(50)
+  title        String    @db.VarChar(255)
+  body         String
+  reference_id String?   @db.Uuid
+  is_read      Boolean   @default(false)
+  sent_at      DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read, created_at(sort: Desc)])
+}
+
+model email_log {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String    @db.Uuid
+  template     String    @db.VarChar(100)
+  to_email     String    @db.VarChar(255)
+  subject      String    @db.VarChar(500)
+  brevo_msg_id String?   @unique @db.VarChar(255)
+  status       String    @default("queued") @db.VarChar(20)
+  sent_at      DateTime? @db.Timestamptz()
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+
+  users users @relation(fields: [user_id], references: [id], onDelete: Restrict)
+}
