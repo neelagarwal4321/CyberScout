@@ -1,0 +1,336 @@
+version: "3.9"
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────
+
+  traefik:
+    image: traefik:v3.0
+    container_name: cyberscout-traefik
+    restart: unless-stopped
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - cybersec-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cyberscout-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cyberscout
+      POSTGRES_PASSWORD: ${PG_PASS:-localdevpassword}
+      POSTGRES_DB: cyberscout_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cyberscout"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cybersec-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: cyberscout-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASS:-localredispass}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS:-localredispass}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - cybersec-net
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.2
+    container_name: cyberscout-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cybersec-net
+
+  # ── Services ─────────────────────────────────────────────────────────
+
+  auth-svc:
+    build: ../services/auth
+    container_name: cyberscout-auth
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+    secrets:
+      - jwt_private
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/v1/auth`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.services.auth.loadbalancer.server.port=3001"
+    networks:
+      - cybersec-net
+
+  user-svc:
+    build: ../services/user
+    container_name: cyberscout-user
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.user.rule=PathPrefix(`/api/v1/users`)"
+      - "traefik.http.routers.user.entrypoints=web"
+      - "traefik.http.services.user.loadbalancer.server.port=3002"
+    networks:
+      - cybersec-net
+
+  course-svc:
+    build: ../services/course
+    container_name: cyberscout-course
+    restart: unless-stopped
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY: ${R2_ACCESS_KEY}
+      R2_SECRET_KEY: ${R2_SECRET_KEY}
+      R2_BUCKET: ${R2_BUCKET}
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.course.rule=PathPrefix(`/api/v1/courses`) || PathPrefix(`/api/v1/lessons`) || PathPrefix(`/api/v1/progress`)"
+      - "traefik.http.routers.course.entrypoints=web"
+      - "traefik.http.services.course.loadbalancer.server.port=3003"
+    networks:
+      - cybersec-net
+
+  ai-tutor-svc:
+    build: ../services/ai-tutor
+    container_name: cyberscout-ai-tutor
+    restart: unless-stopped
+    environment:
+      PORT: 3004
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: cybersec_knowledge
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-llama3-8b-8192}
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai.rule=PathPrefix(`/api/v1/ai`)"
+      - "traefik.http.routers.ai.entrypoints=web"
+      - "traefik.http.services.ai.loadbalancer.server.port=3004"
+    networks:
+      - cybersec-net
+
+  gamification-svc:
+    build: ../services/gamification
+    container_name: cyberscout-gamification
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gamification.rule=PathPrefix(`/api/v1/gamification`)"
+      - "traefik.http.routers.gamification.entrypoints=web"
+      - "traefik.http.services.gamification.loadbalancer.server.port=3005"
+    networks:
+      - cybersec-net
+
+  payment-svc:
+    build: ../services/payment
+    container_name: cyberscout-payment
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment.rule=PathPrefix(`/api/v1/payments`)"
+      - "traefik.http.routers.payment.entrypoints=web"
+      - "traefik.http.services.payment.loadbalancer.server.port=3006"
+    networks:
+      - cybersec-net
+
+  live-class-svc:
+    build: ../services/live-class
+    container_name: cyberscout-live-class
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      ZOOM_SDK_KEY: ${ZOOM_SDK_KEY}
+      ZOOM_SDK_SECRET: ${ZOOM_SDK_SECRET}
+      ZOOM_WEBHOOK_SECRET: ${ZOOM_WEBHOOK_SECRET}
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.live.rule=PathPrefix(`/api/v1/live`)"
+      - "traefik.http.routers.live.entrypoints=web"
+      - "traefik.http.services.live.loadbalancer.server.port=3007"
+    networks:
+      - cybersec-net
+
+  analytics-svc:
+    build: ../services/analytics
+    container_name: cyberscout-analytics
+    restart: unless-stopped
+    environment:
+      PORT: 3008
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics.rule=PathPrefix(`/api/v1/analytics`)"
+      - "traefik.http.routers.analytics.entrypoints=web"
+      - "traefik.http.services.analytics.loadbalancer.server.port=3008"
+    networks:
+      - cybersec-net
+
+  notification-svc:
+    build: ../services/notification
+    container_name: cyberscout-notification
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3009
+      DATABASE_URL: postgresql://cyberscout:${PG_PASS:-localdevpassword}@postgres:5432/cyberscout_db
+      REDIS_URL: redis://:${REDIS_PASS:-localredispass}@redis:6379
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public
+      BREVO_API_KEY: ${BREVO_API_KEY}
+    secrets:
+      - jwt_public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.notification.rule=PathPrefix(`/api/v1/notifications`)"
+      - "traefik.http.routers.notification.entrypoints=web"
+      - "traefik.http.services.notification.loadbalancer.server.port=3009"
+    networks:
+      - cybersec-net
+
+networks:
+  cybersec-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
+
+secrets:
+  jwt_private:
+    file: ./secrets/jwt_private.pem
+  jwt_public:
+    file: ./secrets/jwt_public.pem

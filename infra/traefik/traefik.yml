@@ -1,0 +1,19 @@
+api:
+  dashboard: true
+  insecure: true  # dev only
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: cybersec-net
+
+log:
+  level: INFO
+
+accessLog: {}
