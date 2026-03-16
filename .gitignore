@@ -11,3 +11,5 @@ backend/services/*/dist/
 *.log
 .DS_Store
 Thumbs.db
+infra/secrets/
+.env
