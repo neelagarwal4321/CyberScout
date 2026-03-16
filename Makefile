@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps health migrate ingest keys
+.PHONY: up down build logs ps health migrate ingest keys sync-schema
 
 # Start all services
 up:
@@ -60,3 +60,12 @@ build-go:
 # Dev: start infra only (postgres, redis, qdrant)
 infra-only:
 	cd infra && docker compose up -d postgres redis qdrant
+
+# Sync canonical schema from packages/db to all Node.js services
+sync-schema:
+	@for svc in auth user gamification payment live-class notification; do \
+		if [ -d "services/$$svc/prisma" ]; then \
+			echo "Syncing schema -> services/$$svc/prisma/schema.prisma"; \
+			cp packages/db/schema.prisma services/$$svc/prisma/schema.prisma; \
+		fi; \
+	done
