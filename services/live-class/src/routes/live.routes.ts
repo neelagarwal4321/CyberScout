@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { listClasses, joinClass, registerClass, handleZoomWebhook } from '../controllers/live.controller';
+import { authMiddleware, requireTier } from '../middleware/auth.middleware';
+const router = Router();
+router.post('/webhook', handleZoomWebhook);
+router.use(authMiddleware);
+router.get('/classes', requireTier('beginner'), listClasses);
+router.post('/classes/:id/join', requireTier('beginner'), joinClass);
+router.post('/classes/:id/register', requireTier('beginner'), registerClass);
+export default router;
